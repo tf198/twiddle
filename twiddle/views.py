@@ -3,6 +3,15 @@ from .containers import EventList
 from .objects import TimeRange, Event, Instruction, Rest, BarCheck
 
 def lcd(a, b):
+    '''
+    >>> lcd(9, 12)
+    3
+    >>> lcd(3, 5)
+    Traceback (most recent call last):
+        ...
+    ValueError: No common denominator for 3 and 5
+
+    '''
     for i in range(2, min(a, b)+1):
         if a % i == 0 and b % i == 0: return i
     raise ValueError("No common denominator for %d and %d" % (a, b))
@@ -59,28 +68,6 @@ class Boundary(namedtuple('Boundary', ('start_bar', 'start_tick', 'bar_length', 
                 yield Event(TimeRange(window.start, window.start),
                         BarCheck(self.bar_at(window.start)))
 
-
-    def rest_layout(self, length):
-        '''
-        Layout rests as best as possible
-        '''
-
-        l = self.bar_length
-        d = self.divisions
-        result = []
-        while True:
-            while l <= length:
-                result.append(l)
-                length -= l
-            if length == 0: break
-            try:
-                f = lcd(l, d)
-                l /= f
-            except ValueError:
-                result.append(l)
-                break
-
-        return result
 
     def get_rests(self, tick, tick_length):
         if tick < self.start_tick:
@@ -219,103 +206,4 @@ class TrackView(object):
                     section.add_event(start, Instruction(r"\key %s \major" % key))
 
             yield b, key, section
-
-class OldBarView(object):
-
-    def __init__(self, notes, partial=0):
-        self.notes = notes
-        self.meters = []
-        self.partial = partial
-
-    def add_meter(self, bar, meter):
-        self.meters.append((bar, meter))
-        self.meters.sort()
-
-    def bar_iter(self):
-        clock = self.notes.start + self.partial
-        bar = 1
-        tick_length = self.bar_length((4, 4))
-        for change, meter in self.meters:
-            while bar < change:
-                yield bar, clock, clock + tick_length
-                bar += 1
-                clock += tick_length
-            tick_length = self.bar_length(meter)
-        while clock < self.notes.stop:
-            yield bar, clock, clock + tick_length
-            bar += 1
-            clock += tick_length
-
-
-    def bar_length(self, meter):
-        return (self.notes.resolution * 4 * meter[0]) / meter[1]
-
-    def bar_to_tick(self, n):
-        if n == 0: return 0, self.partial
-
-        bar_length = self.bar_length((4,4)) # (4/4)
-        current_bar = 1
-        ticks = self.partial
-
-        for start_bar, meter in self.meters:
-            if n < start_bar: break
-            ticks += (start_bar - current_bar) * bar_length
-            current_bar = start_bar
-            bar_length = self.bar_length(meter)
-            
-        return ticks + (n-current_bar) * bar_length, bar_length
-
-    def tick_to_bar(self, t):
-
-        bar_length = self.bar_length((4,4))
-
-        t -= self.partial
-        current_bar = 1
-
-        for start_bar, meter in self.meters:
-            block = (start_bar - current_bar) * bar_length
-            if block >= t: break
-            t -= block
-            bar_length = self.bar_length(meter)
-            current_bar = start_bar
-            
-        return current_bar + int(math.floor((float(t) / bar_length)))
-
-    def note_at(self, bar, beat=1):
-        pass
-
-    def bar(self, i):
-
-        start, length = self.bar_to_tick(i)
-
-        return self.notes.slice(start, start+length)
-        return self.notes.tick_slice(start, length)
-
-    def bars(self, first, last):
-        start, _ = self.bar_to_tick(first)
-        end, length = self.bar_to_tick(last)
-        return self.notes.slice(start, end+length)
-
-
-    def bar_layout(self):
-        
-        bar_length = self.notes.resolution # 4/4
-
-        yield 0, self.partial
-        clock = self.partial
-        
-        for start_bar, meter in self.meters:
-            for i in range(current_bar, start_bar):
-                yield clock, bar_length
-                clock += bar_length
-            bar_length = self.bar_length(meter)
-
-        while clock < self.notes.duration:
-            yield clock, bar_length
-            clock += bar_length
-
-    def to_lily(self, state={}):
-        split_at = self.bar_length((2, 4))
-        return "".join(("%s | %% Bar %d\n" % (x.to_lily(), x.stop/split_at) for x in self.notes.split(split_at)))
-
 

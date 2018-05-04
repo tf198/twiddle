@@ -334,14 +334,3 @@ class VoiceList(dict):
 
         return "\n\n".join([ "{0} = {{\n{1}\n}}".format(track, self[track].to_lily(context))
             for track in self])
-
-        outputs = {}
-        #view = context['trackview'] if 'trackview' in context else None
-        view = None
-        for track in self:
-            if view:
-                outputs[track] = "\n".join(( "%s | %% bar %d" % (x.to_lily(context), b) for b, x in enumerate(view.bar_iter(self[track])) ))
-            else:
-                outputs[track] = self[track].to_lily(context)
-
-        return "\n\n".join([ "{0} = {{\n{1}\n}}".format(track, outputs[track]) for track in outputs ])

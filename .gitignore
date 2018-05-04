@@ -1,2 +1,5 @@
 *.pyc
 old
+.coverage
+htmlcov
+
