@@ -46,11 +46,14 @@ class EventList(list):
         self.insert(Event(TimeRange(tick, tick), Instruction(event)))
         return self
 
-    def append(self, event):
+    def append(self, event, sequential=False):
         '''
         Appends an event.
         If the event is out of sequence the container is sorted after.
         '''
+        if sequential and event.time.start < self.time.stop:
+            raise SequenceError("Cannot go back in time")
+
         list.append(self, event)
         if event.time.start < self.time.stop:
             self.sort()
@@ -113,8 +116,8 @@ class EventList(list):
         '''
     
         if isinstance(window, int):
-            seq = [ e for e in self if e.time.start == tick ]
-            return EventList(p, resolution=self.resolution)
+            seq = [ e for e in self if e.time.start == window ]
+            return EventList(seq, resolution=self.resolution)
 
         return self.__class__([ x for x in self if window.contains(x.time) ], window, self.resolution)
 
@@ -150,7 +153,11 @@ class EventList(list):
 
     def add_attr(self, attr):
         for x in self.note_iter():
-            x.add_attr(attr)
+            x.item.add_attr(attr)
+
+    def get_track_view(self, **kwargs):
+        from .views import TrackView
+        return TrackView(resolution=self.resolution, **kwargs)
 
     def apply(self, f, *args, **kwargs):
         '''
@@ -176,18 +183,25 @@ class EventList(list):
     def __enter__(self):
         return self
 
-    def render_track(self, track_view, context={}):
+    def render_track(self, track_view=None, context={}, **kwargs):
+
+        if track_view is None:
+            track_view = self.get_track_view(**kwargs)
+
         output = []
         for bar_info, key, notes in track_view.split_sections(self):
             context['key'] = key
             output.append(notes.render_section(bar_info, context))
         return "\n".join(output)
 
-    def render_section(self, bar_info, context={}):
+    def render_section(self, bar_info=None, context={}, **kwargs):
         clock = self.time.start
         
+        if bar_info is None:
+            bar_info = self.get_track_view(**kwargs).bar_info(1)
+        context['resolution'] = self.resolution
+
         output = []
-        #output.append('\\time %d/%d\n' % bar_info.meter(context['resolution']))
         for e in self:
             if clock < e.time.start: # need to add rests before
                 for r in bar_info.get_rests(clock, e.time.start-clock):
@@ -195,9 +209,12 @@ class EventList(list):
                 clock = e.time.start
 
             if e.time.start < clock:
-                logger.warning("Dropping overlapping note %r", e)
+                logger.warning("Dropping overlapping note %s at bar %d" % 
+                        (e.to_lily(context), bar_info.bar_at(e.time.start)))
             else:
-                if isinstance(e.item, Note):
+                if isinstance(e, EventList):
+                    output.append(e.render_section(bar_info, context))
+                elif isinstance(e.item, Note):
                     for n in bar_info.split_note(e):
                         output.append(n.to_lily(context))
                 else:
@@ -300,7 +317,7 @@ class VoiceList(dict):
             self[k].extend(v[k])
 
     def __getitem__(self, key):
-        if isinstance(key, TimeRange):
+        if isinstance(key, (TimeRange, int)):
             return self.get(key)
         return dict.__getitem__(self, key)
 
@@ -315,7 +332,7 @@ class VoiceList(dict):
 
     def __getattr__(self, name):
 
-        ALLOWED = ('add_event', 'apply')
+        ALLOWED = ('add_event', 'apply', 'add_attr')
 
         if not name in ALLOWED:
             raise AttributeError("Not a valid method: %s" % name)

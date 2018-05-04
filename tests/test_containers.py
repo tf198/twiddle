@@ -76,12 +76,24 @@ class EventListTest(TestCase):
         
         c.paste(EventList(self.TEST_EVENTS))
         self.assertEqual(c.time, (10, 50))
-        self.assertEqual([ repr(x) for x in c ], ['1-10', '2-10', '1-10', '2-10'])
+        self.assertEqual(c.render_section(), ['1-10', '2-10', '1-10', '2-10'])
         self.assertEqual([ x.time.start for x in c ], [10, 20, 30, 40])
 
         c.paste(EventList(self.TEST_EVENTS), 10)
         self.assertEqual(c.time, (10, 80))
         self.assertEqual([ x.time.start for x in c ], [10, 20, 30, 40, 60, 70])
+
+        c = from_string('A-2 Bb-1 R-1 D-1')
+        c.append(from_string('D-1 E-1 R-2 G-1', start=c.time.stop))
+
+        self.assertEqual(c.time.stop, 10)
+
+        c.paste(from_string('A-6 R-1 D-3'))
+        self.assertEqual(c.time.stop, 20)
+
+        print(list(c))
+
+
 
     def test_get(self):
         c = EventList(self.TEST_EVENTS)
@@ -112,10 +124,15 @@ class EventListTest(TestCase):
 
     def test_nested_layout(self):
         track = from_string('A-2 Bb-1 R-1 D-1')
-        track.append(from_string('D-1 E-1 R-2'))
-        track.paste(from_string('G-1 A-6 R-1 D-3'))
+        track.append(from_string('D-1 E-1 R-2 G-1', start=track.time.stop))
 
-        print(repr(track))
+        self.assertEqual(track.time.stop, 10)
+
+        #track.paste(from_string('A-6 R-1 D-3'))
+
+        #print(repr(track))
+        self.assertEqual(track.render_section(), 'a2 ais4 r4 | d4 r4 r2 | r2 a2~ | a1 | r4 d2. |')
+        #print(track.render_section())
 
         
 

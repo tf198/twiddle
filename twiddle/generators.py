@@ -7,9 +7,7 @@ logger = logging.getLogger(__name__)
 
 NOTES = ("C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B", "C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb")
 
-def notes_from_string(s):
-
-    clock = 0
+def notes_from_string(s, clock=0):
 
     for n in s.split(" "):
         note, duration = n.split('-')
@@ -19,8 +17,8 @@ def notes_from_string(s):
             yield Event(TimeRange(clock, clock+duration), Note(pitch, ()))
         clock += duration
 
-def from_string(s, resolution=1):
-    return EventList(resolution=resolution).extend(notes_from_string(s))
+def from_string(s, resolution=1, start=0):
+    return EventList(resolution=resolution).extend(notes_from_string(s, start))
 
 def notes_from_tuples(seq):
 
@@ -49,6 +47,8 @@ def notes_from_midi(track, quantize=48):
                 yield Event(TimeRange(start, clock), Note(e.pitch, ()))
         elif e.name == 'Note On':
             pending[e.pitch] = clock
+        else:
+            logger.debug(e)
 
 def group_chords(seq):
 

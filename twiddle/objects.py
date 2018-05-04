@@ -114,8 +114,8 @@ class Event(object):
 
     def __repr__(self):
         if self.time.ticks:
-            return "{0}-{1}".format(self.item, self.time.ticks)
-        return str(self.item)
+            return "<{0!r} {1}>".format(self.item, self.time)
+        return repr(self.item)
 
     def to_lily(self, context={}):
         context['tick_length'] = self.time.ticks

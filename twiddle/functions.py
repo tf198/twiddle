@@ -65,7 +65,10 @@ def extend(container, max_gap):
 
 def transpose(container, offset):
     for note in container.note_iter():
-        note.item = Note([ pitch + offset for pitch in note.item.pitch ], note.item.attr)
+        if isinstance(note.item.pitch, int):
+            note.item.pitch = note.item.pitch + offset
+        else:
+            note.item.pitch = [ p + offset for p in note.item.pitch ]
 
     return container
 
@@ -76,6 +79,12 @@ def octave_up(container, r):
     container.add_event(r.start, r'\ottava #1')
     container.add_event(r.stop, r'\ottava #0')
     return container
+
+def attribute_list(container, items):
+    for position, attr in items:
+        container.get(position).add_attr('\\' + attr)
+    return container
+
 
 def sequential(container):
 
