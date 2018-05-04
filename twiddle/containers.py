@@ -170,7 +170,7 @@ class EventList(list):
         return f(self, *args, **kwargs)
 
     def __and__(self, other):
-        result = self.__class__()
+        result = self.__class__(resolution=self.resolution)
         result.extend(self)
         result.extend(other)
         return result
