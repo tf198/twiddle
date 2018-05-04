@@ -125,6 +125,12 @@ class EventList(list):
                 result.append(e.slice(window))
         return self.__class__(result, window, self.resolution)
 
+    def split(self, position):
+        return (
+            self.slice(TimeRange(self.time.start, position)),
+            self.slice(TimeRange(position, self.time.stop))
+        )
+
     def __getitem__(self, key):
 
         if isinstance(key, TimeRange):
@@ -170,31 +176,18 @@ class EventList(list):
     def __enter__(self):
         return self
 
+    def render_track(self, track_view, context={}):
+        output = []
+        for bar_info, key, notes in track_view.split_sections(self):
+            context['key'] = key
+            output.append(notes.render_section(bar_info, context))
+        return "\n".join(output)
 
-    #def with_rests(self, bar_info):
-    #    clock = self.time.start
-    #    
-    #    for e in self:
-    #        if clock < e.time.start: # need to add rests before event
-    #            for r in bar_info.get_rests(clock, e.time.start-clock):
-    #                yield Event(TimeRange(clock, clock+r), Note(None, ()))
-    #                clock += r
-    #        if e.time.start < clock:
-    #            logger.warning("Dropping overlapping note %r at bar %d", 
-    #                    e, bar_info.bar_at(e.time.start))
-    #            yield Event(TimeRange(clock, clock), Comment("Dropped %s" % e))
-    #        else:
-    #            yield e
-    #            clock = e.time.stop
-    #    if clock < self.time.stop:
-    #        for r in bar_info.get_rests(clock, self.time.stop-clock):
-    #            yield Event(TimeRange(clock, clock+r), Note(None, ()))
-    #            clock += r
-
-    def layout(self, bar_info, context={}):
+    def render_section(self, bar_info, context={}):
         clock = self.time.start
         
         output = []
+        #output.append('\\time %d/%d\n' % bar_info.meter(context['resolution']))
         for e in self:
             if clock < e.time.start: # need to add rests before
                 for r in bar_info.get_rests(clock, e.time.start-clock):
@@ -218,13 +211,22 @@ class EventList(list):
 
         return " ".join(output)
 
+    def render_notes(self, context={}):
+
+        return " ".join(( x.to_lily(context) for x in self))
+
+
     def to_lily(self, context={}):
         context['resolution'] = self.resolution
 
+        if 'track_view' in context:
+            new_context = { k: context[k] for k in context if k != 'track_view' }
+            return self.render_track(context['track_view'], new_context)
+
         if 'bar_info' in context:
-            return self.layout(context['bar_info'], context)
-        
-        return " ".join(( x.to_lily(context) for x in self))
+            return self.render_section(context['bar_info'], context)
+
+        return self.render_notes(context)
 
 
     def items(self):

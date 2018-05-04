@@ -7,12 +7,38 @@ def lcd(a, b):
         if a % i == 0 and b % i == 0: return i
     raise ValueError("No common denominator for %d and %d" % (a, b))
 
+def rest_layout(rest_length, bar_length, divisions):
+    '''
+    Layout rests as best as possible
+    >>> rest_layout(12, 12, 4)
+    [12]
+    '''
+
+    l = bar_length
+    result = []
+    while True:
+        while l <= rest_length:
+            result.append(l)
+            rest_length -= l
+        if rest_length == 0: break
+        try:
+            f = lcd(l, divisions)
+            l /= f
+        except ValueError:
+            result.append(l)
+            break
+
+    return result
+
 class Boundary(namedtuple('Boundary', ('start_bar', 'start_tick', 'bar_length', 'divisions'))):
 
     def bar_at(self, tick):
         if tick < self.start_tick:
             raise IndexError('Cannot calculate bar prior to %d' % self.start_tick)
         return self.start_bar + (tick - self.start_tick) / self.bar_length
+
+    def meter(self, resolution):
+        return self.divisions, (resolution * 4 * self.divisions) / self.bar_length
 
     def is_bar_break(self, tick):
         if tick < self.start_tick:
@@ -36,11 +62,7 @@ class Boundary(namedtuple('Boundary', ('start_bar', 'start_tick', 'bar_length', 
 
     def rest_layout(self, length):
         '''
-        with resolution 24
-        12 => 24, 12, 6, 3, 1
-        9 => 24, 8, 
-        4 => 1/2 1/4 1/8 1/6
-        3 => 1/4
+        Layout rests as best as possible
         '''
 
         l = self.bar_length
@@ -70,7 +92,7 @@ class Boundary(namedtuple('Boundary', ('start_bar', 'start_tick', 'bar_length', 
         if tick % self.bar_length:
             rest_ticks = min(tick_length, self.bar_length - tick % self.bar_length)
 
-            for r in sorted(self.rest_layout(rest_ticks)):
+            for r in sorted(rest_layout(rest_ticks, self.bar_length, self.divisions)):
                 yield Event(TimeRange(tick, tick+r), Rest('r'))
                 tick += r
             tick_length -= rest_ticks
@@ -90,7 +112,7 @@ class Boundary(namedtuple('Boundary', ('start_bar', 'start_tick', 'bar_length', 
 
         # remaining rests
         if tick_length:
-            for r in self.rest_layout(tick_length):
+            for r in rest_layout(tick_length, self.bar_length, self.divisions):
                 yield Event(TimeRange(tick, tick+r), Rest('r'))
                 tick += r
         
@@ -152,9 +174,11 @@ class TrackView(object):
         return last
 
     def bar(self, n):
+        ' Returns the notes within the given bar '
         return self.get_range((n, 1), (n+1, 1))
 
     def bars(self, start, end):
+        ' Returns the notes within the given bar range '
         if isinstance(start, int):
             start = (start, 1)
         if isinstance(end, int):
@@ -162,45 +186,39 @@ class TrackView(object):
         return self.get_range(start, end)
 
     def notes(self, start, end):
+        ' Returns the notes within the given range (alias for get_range())'
         return self.get_range(start, end)
 
     def get_range(self, start, end):
         return TimeRange(self.beat(*start), self.beat(*end))
 
     def bar_info(self, tick):
+        ' Returns the Boundary object at the given tick '
         last = None
         for b in self._boundaries:
             if tick < b.start_tick: break
             last = b
         return last
 
-    def get_sections(self, notes):
-        pass
-
-    def bar_iter(self, notes):
-        duration = notes.time.ticks
+    def split_sections(self, notes):
         clock = notes.time.start
 
-        key_changes = dict(self.keys)
+        boundaries = self._boundaries + [Boundary(None, notes.time.stop, None, None)]
 
-        i = iter(self._boundaries + [Boundary(None, notes.time.ticks, None, None)])
+        for i in range(len(boundaries)-1):
+            b = boundaries[i]
+            stop = boundaries[i+1].start_tick
 
-        this_meter = i.next()
-        
-        while clock < duration:
-            next_meter = i.next()
-            while clock < next_meter.start_tick:
-                r = TimeRange(clock, clock+this_meter.bar_length)
-                bar = EventList(time=r, resolution=self.resolution)
-                bar.extend(notes.slice(r))
-                if clock == this_meter.start_tick:
-                    bar.add_event(clock, Instruction(r'\time 2/4'))
-                if clock in key_changes:
-                    bar.add_event(clock, Instruction(r'\key %s \major' % key_changes[clock]))
-                yield EventList(bar.with_rests(), r, self.resolution)
-                clock = bar.time.stop
-            this_meter = next_meter
-            next_meter = i.next()
+            section = notes.slice(TimeRange(b.start_tick, stop))
+            section.add_event(b.start_tick, Instruction(r"\time %d/%d" % b.meter(notes.resolution)))
+
+            for start, key in self.keys:
+                if section.time.contains(start):
+                    s, section = section.split(start)
+                    yield b, key, s
+                    section.add_event(start, Instruction(r"\key %s \major" % key))
+
+            yield b, key, section
 
 class OldBarView(object):
 

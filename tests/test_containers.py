@@ -107,8 +107,16 @@ class EventListTest(TestCase):
         part = from_string('A-2 Bb-1 R-1 D-2 E-1 R-2 G-1 A-6 R-1 D-3')
         view = TrackView(resolution=part.resolution, meter=(4, 4))
 
-        self.assertEqual(part.layout(view.bar_info(0), {'resolution': part.resolution}), 
+        self.assertEqual(part.render_section(view.bar_info(0), {'resolution': part.resolution}), 
                 "a2 ais4 r4 | d2 e4 r4 | r4 g4 a2~ | a1 | r4 d2. |")
+
+    def test_nested_layout(self):
+        track = from_string('A-2 Bb-1 R-1 D-1')
+        track.append(from_string('D-1 E-1 R-2'))
+        track.paste(from_string('G-1 A-6 R-1 D-3'))
+
+        print(repr(track))
+
         
 
 class VoiceListTest(TestCase):

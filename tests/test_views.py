@@ -2,7 +2,6 @@ from unittest import TestCase
 
 from twiddle.containers import EventList
 from twiddle.views import TrackView, Boundary
-from twiddle import generators
 from twiddle.objects import Note, Event, TimeRange
 
 class BoundaryTest(TestCase):
@@ -116,12 +115,6 @@ class TrackViewTest(TestCase):
         c = TrackView(3)
         self.assertEqual(c.get_range((3, 2), (5, 1)), (27, 48))
 
-    #def test_bar_iter(self):
-    #    c = TrackView(1)
-    #    notes = generators.from_string('A-1 B-1 C#-1 A-2 B-1 C#-1')
-    #    print(list(c.bar_iter(notes)))
-
-
     def test_bar_info(self):
         c = TrackView(1, meter=(3, 4))
         c.set_meter(3, meter=(2, 4))
@@ -138,3 +131,9 @@ class TrackViewTest(TestCase):
 
         self.assertEqual(c.bar_info(1000), (4, 8, 3, 3))
 
+    def test_split_sections(self):
+        c = TrackView(1, meter=(3, 4))
+        c.set_meter(3, meter=(2, 4))
+        c.set_meter(4, meter=(3, 4))
+
+        c.split_sections(EventList(time=TimeRange(0, 10), resolution=1))

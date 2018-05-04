@@ -5,6 +5,9 @@ class TimeError(Exception):
     pass
 
 class TimeRange(namedtuple('TimeRange', ('start', 'stop'))):
+    '''
+
+    '''
 
     @staticmethod
     def from_events(seq):
@@ -28,7 +31,7 @@ class TimeRange(namedtuple('TimeRange', ('start', 'stop'))):
         start = max(self.start, other.start)
         stop = min(self.stop, other.stop)
         if stop < start:
-            raise IndexError("{0} doesn't intersect {1}".format(self, other))
+            raise TimeError("{0} doesn't intersect {1}".format(self, other))
         return TimeRange(start, stop)
 
     def extend(self, tick):
@@ -107,11 +110,8 @@ class Event(object):
         return Event(self.time + offset, self.item)
 
     def __gt__(self, other):
-        return (self.time, self.item) > (other.time, other.item)
+        return self.time > other.time
 
-    #def __repr__(self):
-    #    return "<%s %r: \"%r\">" % (self.__class__.__name__, self.time, self.item)
-    
     def __repr__(self):
         if self.time.ticks:
             return "{0}-{1}".format(self.item, self.time.ticks)
