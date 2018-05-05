@@ -119,21 +119,26 @@ class EventListTest(TestCase):
         view = TrackView(resolution=part.resolution, meter=(4, 4))
         context = {'bar_info': view.bar_info(0)}
 
-        self.assertEqual(part.to_lily(context), "a2 ais4 c4 | d2 e4 f4~ | f4 g4 a2 |")
+        self.assertEqual(part.to_lily(context),
+                "{ a2 ais4 c4 | d2 e4 f4~ | f4 g4 a2 | }")
 
     def test_lily_layout(self):
         part = from_string('A-2 Bb-1 R-1 D-2 E-1 R-2 G-1 A-6 R-1 D-3')
         view = TrackView(resolution=part.resolution, meter=(4, 4))
 
         self.assertEqual(part.render_section(view.bar_info(0), {'resolution': part.resolution}), 
-                "a2 ais4 r4 | d2 e4 r4 | r4 g4 a2~ | a1 | r4 d2. |")
+                "{ a2 ais4 r4 | d2 e4 r4 | r4 g4 a2~ | a1 | r4 d2. | }")
+
+        part.add_event(part.time.stop, 'FOO')
+        self.assertTrue(part.render_section().endswith, "d2. | \nFOO\n }")
 
     def test_nested_layout(self):
         track = from_string('A-2 Bb-1 R-1 D-1')
         track.append(from_string('D-1 E-1 R-2 G-1', start=track.time.stop))
 
         self.assertEqual(track.time.stop, 10)
-        self.assertEqual(track.render_section(), 'a2 ais4 r4 | d4 d4 e4 r4 | r4 g4')
+        self.assertEqual(track.render_section(),
+                '{ a2 ais4 r4 | d4 { d4 e4 r4 | r4 g4 } }')
         
         #track.paste(from_string('A-6 R-1 D-3'))
 

@@ -1,6 +1,12 @@
 from collections import namedtuple
 from .containers import EventList
-from .objects import TimeRange, Event, Instruction, Rest, BarCheck
+from .objects import TimeRange, Event, Instruction, Rest, BarCheck, KeySignature
+
+import logging
+logger = logging.getLogger(__name__)
+
+KEYS = ('Cb', 'Gb', 'Db', 'Ab', 'Eb', 'Bb', 'F', 'C', 'G', 'D', 'A', 'E', 'B', 'F#', 'F#')
+NOTES = ("C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B", "C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb")
 
 def lcd(a, b):
     '''
@@ -109,11 +115,11 @@ def calc_bar_length(resolution, meter):
 
 class TrackView(object):
 
-    def __init__(self, resolution, partial=0, meter=(4, 4), key="c"):
+    def __init__(self, resolution, partial=0, meter=(4, 4), key="C"):
         self.resolution = resolution
         self.partial = partial
         self.meters = []
-        self.keys = [(0, key)]
+        self.keys = [(0, KEYS.index(key)-7)]
         self.set_meter(1, meter)
 
     def set_meter(self, start, meter):
@@ -136,10 +142,16 @@ class TrackView(object):
             self._boundaries.append(Boundary(start_bar, ticks, bar_length, meter[0]))
             current_bar = start_bar
 
-
     def set_key(self, bar, key):
-        self.keys.append((self.beat(bar), key))
+        try:
+            k = KEYS.index(key) - 7
+        except ValueError:
+            raise IndexError("No such key: %s" % key)
+        self.keys.append((self.beat(bar), k))
         self.keys.sort()
+
+    def transpose(self, offset):
+        self.keys = [ (s, n+offset) for s, n in self.keys ]
 
     def beat(self, bar, beat=1, divisions=None):
         for b in self._boundaries:
@@ -203,7 +215,7 @@ class TrackView(object):
                 if section.time.contains(start):
                     s, section = section.split(start)
                     yield b, key, s
-                    section.add_event(start, Instruction(r"\key %s \major" % key))
+                    section.add_event(start, KeySignature(key))
 
             yield b, key, section
 

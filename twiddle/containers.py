@@ -18,10 +18,10 @@ class EventList(list):
     __slots__ = ('time', 'resolution')
 
     def __init__(self, items=(), time=None, resolution=96):
-        self.resolution = resolution
         list.__init__(self, items)
         if time is None:
             time = TimeRange.from_events(self)
+        self.resolution = resolution
         self.time = time
 
     @property
@@ -36,6 +36,9 @@ class EventList(list):
             last = e.time
         return True
 
+    def set_time(self, **kwargs):
+        self.time = self.time._replace(**kwargs)
+
     def validate(self):
         last = TimeRange(-1, -1)
         for e in self:
@@ -43,7 +46,9 @@ class EventList(list):
             if self.time < last: raise SequenceError("Sequence jumps back at %r" % e)
 
     def add_event(self, tick, event):
-        self.insert(Event(TimeRange(tick, tick), Instruction(event)))
+        if isinstance(event, basestring):
+            event = Instruction(event)
+        self.insert(Event(TimeRange(tick, tick), event))
         return self
 
     def append(self, event, sequential=False):
@@ -76,6 +81,9 @@ class EventList(list):
 
         for x in self:
             yield Event(x.time * (r, self.resolution), x.item)
+
+    def clone(self):
+        return self.slice(self.time)
     
     def extend(self, seq):
         '''
@@ -95,14 +103,17 @@ class EventList(list):
         if DEBUG: self.validate()
         return self
 
-    def paste(self, seq, offset=0):
+    def paste(self, seq, offset=0, start=None):
         '''
         Appends all the items from container to this one.
         The items are offset to follow sequentially from the current.
         You can specify a gap by giving a positive offset.
         '''
-        offset += self.time.stop - seq.time.start
+        if start is None:
+            start = self.time.stop
+        offset += start - seq.time.start
         self.extend(( x.shift(offset) for x in seq ))
+        return self
 
     def __iadd__(self, other):
         ' Convenience method for cut-n-paste score operations '
@@ -120,6 +131,18 @@ class EventList(list):
             return EventList(seq, resolution=self.resolution)
 
         return self.__class__([ x for x in self if window.contains(x.time) ], window, self.resolution)
+
+    def remove(self, window):
+        if isinstance(window, int):
+            seq = [ e for e in self if e.time.start != window ]
+            return EventList(seq, resolution=self.resolution)
+        logger.info("REMOVING %s %d", window, len(self))
+        self[:] = [ x for x in self if not window.contains(x.time) ]
+    
+    def replace(self, window, other):
+        self.remove(window)
+        logger.info("Pasting %r at %d", other, window.start)
+        return self.paste(other, start=window.start)
 
     def slice(self, window):
         result = []
@@ -140,7 +163,6 @@ class EventList(list):
             return self.get(key)
 
         return list.__getitem__(self, key)
-
 
     def note_iter(self):
         for x in self:
@@ -167,7 +189,8 @@ class EventList(list):
             from . import functions
             f = getattr(functions, f)
 
-        return f(self, *args, **kwargs)
+        f(self, *args, **kwargs)
+        return self
 
     def __and__(self, other):
         result = self.__class__(resolution=self.resolution)
@@ -226,7 +249,8 @@ class EventList(list):
             for r in bar_info.get_rests(clock, self.time.stop-clock):
                 output.append(r.to_lily(context))
 
-        return " ".join(output)
+        nl = context.get('new_line', ' ')
+        return "{%s%s%s}" % (nl, " ".join(output), nl)
 
     def render_notes(self, context={}):
 
@@ -258,21 +282,27 @@ class EventList(list):
         return "[{0}]{1}".format(output, self.time)
 
 class ParallelEventList(list):
-    __slots__ = ('time', )
+    __slots__ = ('time', 'bookends')
 
-    def __init__(self, time=None):
+    def __init__(self, time=None, bookends=("<<", ">>")):
         list.__init__(self)
         if time is None:
             time = TimeRange(-1, -1)
         self.time = time
+        self.bookends = bookends
 
-    def append(self, event):
-        for s in self:
-            try:
-                return s.append(event)
-            except SequenceError:
-                pass
-        list.append(self, SequentialEventList(time=self.time, resolution=self.resolution))
+    #def append(self, event):
+    #    for s in self:
+    #        try:
+    #            return s.append(event)
+    #        except SequenceError:
+    #            pass
+    #    list.append(self, SequentialEventList(time=self.time, resolution=self.resolution))
+
+    def to_lily(self, context={}):
+        nl = context.get('new_line', ' ')
+        items = " ".join(( x.to_lily(context) for x in self ))
+        return "".join([ self.bookends[0], nl, items, nl, self.bookends[1] ])
 
 class VoiceList(dict):
 
@@ -306,6 +336,9 @@ class VoiceList(dict):
 
         return result
 
+    def empty(self):
+        return VoiceList(( (name, EventList(resolution=self[name].resolution)) for name in self ))
+
     def get(self, r):
         return VoiceList(( (name, self[name].get(r)) for name in self ))
 
@@ -316,6 +349,9 @@ class VoiceList(dict):
         for k in self:
             self[k].paste(other[k])
         return self
+
+    def __add__(self, other):
+        return VoiceList(( (name, self[name].clone().paste(other[name])) for name in self ))
 
     def extend(self, v):
         for k in self:
@@ -337,7 +373,7 @@ class VoiceList(dict):
 
     def __getattr__(self, name):
 
-        ALLOWED = ('add_event', 'apply', 'add_attr')
+        ALLOWED = ('add_event', 'apply', 'add_attr', 'append')
 
         if not name in ALLOWED:
             raise AttributeError("Not a valid method: %s" % name)

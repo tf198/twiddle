@@ -1,5 +1,5 @@
 from unittest import TestCase
-from twiddle.objects import TimeRange, Event, Note
+from twiddle.objects import *
 
 class TimeRangeTest(TestCase):
 
@@ -59,3 +59,14 @@ class EventTest(TestCase):
         e2 = e1.shift(15)
         self.assertEqual(e1.time, (10, 20)) 
         self.assertEqual(e2.time, (25, 35))
+
+class ObjectTest(TestCase):
+
+    def test_keysignature(self):
+        self.assertEqual(KeySignature(0).to_lily(), r'\key c \major')
+        self.assertEqual(KeySignature(1).to_lily(), r'\key g \major')
+        self.assertEqual(KeySignature(0, True).to_lily(), r'\key a \minor')
+
+    def test_event_to_lily(self):
+        e = Event(TimeRange(0, 1), KeySignature(0))
+        self.assertEqual(e.to_lily(), r'\key c \major')

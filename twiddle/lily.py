@@ -3,29 +3,35 @@ from fractions import Fraction
 import logging
 logger = logging.getLogger(__name__)
 
-KEYS = ('c-', 'g-', 'd-', 'a-', 'e-', 'b-', 'f', 'c', 'g', 'd', 'a', 'e', 'b', 'f+', 'c+')
-NOTES = 'c_d_ef_g_a_b'
-OCTAVES = (",,,,", ",,,", ",,", ",", "", "'", "''", "'''", "''''")
+LILY_NOTES = 'c_d_ef_g_a_b'
+LILY_OCTAVES = (",,,,", ",,,", ",,", ",", "", "'", "''", "'''", "''''")
 
 OCTAVE_UP       = r'\ottava #1'
 OCTAVE_NORMAL   = r'\ottava #0'
 OCTAVE_DOWN     = r'\ottava #-1'
 
-def int_to_note(i, key='c'):
+def int_to_note(i, key=0, accidentals=('es', 'is')):
 
     if i is None:
         return "r"
 
     if isinstance(i, (list, tuple)):
         if len(i) == 1: return int_to_note(i[0])
-        return "<{0}>".format(" ".join([ int_to_note(x) for x in i ]))
+        return "<{0}>".format(" ".join([ int_to_note(x, key) for x in i ]))
 
-    pitch = NOTES[i % 12]
+    pitch = LILY_NOTES[i % 12]
+    a = ""
     if pitch == "_":
-        i -= 1 if KEYS.index(key) >=7 else -1
-        pitch = NOTES[i % 12] + "is"
+        if key >= 0:
+            i -=1
+            a = accidentals[1]
+        else:
+            i += 1
+            a = accidentals[0]
+        pitch = LILY_NOTES[i % 12] + a 
 
-    return "%s%s" % (pitch, OCTAVES[i/12])
+    return "%s%s" % (pitch, LILY_OCTAVES[i/12])
+
 
 def duration_to_length(d, resolution):
     '''

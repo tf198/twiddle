@@ -1,4 +1,4 @@
-from .objects import Note, Event, TimeRange
+from .objects import Note, Event, TimeRange, Instruction
 
 import logging
 logger = logging.getLogger(__name__)
@@ -35,8 +35,11 @@ def group(container, interval, start, end):
     
     return container
 
-def slur(container, interval):
-    return group(container, interval, '(', ')')
+def slur(container, interval=None):
+    if interval is not None:
+        return group(container, interval, '(', ')')
+    container[0].item.add_attr('(')
+    container[-1].item.add_attr(')')
 
 def beam(container, interval):
     return group(container, interval, '[', ']')
@@ -45,6 +48,11 @@ def cres(container):
     notes = container.note_events()
     container[0].item.add_attr(r'\<')
     container[-1].item.add_attr(r'\!')
+    return container
+
+def mark(container, opening, closing):
+    list.insert(container, 0, Event(TimeRange(container.time.start, container.time.start), Instruction(opening)))
+    container.add_event(container.time.stop, closing)
     return container
 
 def extend(container, max_gap):

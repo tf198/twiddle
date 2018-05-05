@@ -1,6 +1,9 @@
 from collections import namedtuple
 from lily import int_to_note, duration_to_length
 
+import logging
+logger = logging.getLogger(__name__)
+
 class TimeError(Exception):
     pass
 
@@ -209,3 +212,28 @@ class Comment(str):
 
     def to_lily(self, context={}):
         return "% {0}\n".format(self)
+
+class Raw(str):
+    __slots__ = ()
+
+    def to_lily(self, context={}):
+        return "% raw output\n{0}\n% end raw output\n".format(self)
+
+class KeySignature(object):
+    __slots__ = ('key', 'minor')
+
+    def __init__(self, key, minor=False):
+        self.key = key
+        self.minor = minor
+
+    def to_lily(self, context={}):
+        p = 60 + self.key * 7
+        if self.minor:
+            p -= 3
+
+        key = int_to_note(p, self.key).strip("',")
+        logger.info("KEY: %s -> %s", self.key, key)
+        return r'\key {0} \{1}'.format(key, 'minor' if self.minor else 'major')
+
+    def __repr__(self):
+        return "<Key {0}>".format(self.key)

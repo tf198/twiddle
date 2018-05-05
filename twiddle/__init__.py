@@ -1,4 +1,5 @@
-from .containers import VoiceList
+from .containers import VoiceList, EventList, ParallelEventList
+from .objects import TimeRange
 from .views import TrackView
 
 def init_midi():

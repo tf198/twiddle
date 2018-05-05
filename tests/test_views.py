@@ -93,14 +93,14 @@ class TrackViewTest(TestCase):
 
     def test_keys(self):
         c = TrackView(3)
-        self.assertEqual(c.key(12), 'c')
+        self.assertEqual(c.key(12), 0)
 
-        c = TrackView(3, key='fs')
+        c = TrackView(3, key='D')
         c.set_meter(3, (3,4))
-        c.set_key(3, 'b')
+        c.set_key(3, 'F')
         
-        self.assertEqual(c.key(2), 'fs')
-        self.assertEqual(c.key(3), 'b')
+        self.assertEqual(c.key(2), 2)
+        self.assertEqual(c.key(3), -1)
 
     def test_bar(self):
         c = TrackView(3)
