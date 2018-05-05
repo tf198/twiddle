@@ -312,6 +312,11 @@ class VoiceList(dict):
     def slice(self, r):
         return VoiceList(( (name, self[name].slice(r)) for name in self ))
 
+    def __iadd__(self, other):
+        for k in self:
+            self[k].paste(other[k])
+        return self
+
     def extend(self, v):
         for k in self:
             self[k].extend(v[k])
