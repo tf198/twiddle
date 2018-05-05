@@ -1,4 +1,4 @@
-from .objects import Note
+from .objects import Note, Event, TimeRange
 
 import logging
 logger = logging.getLogger(__name__)
@@ -51,7 +51,7 @@ def extend(container, max_gap):
     gap_ticks = float(container.resolution * 4 / max_gap)
     logger.debug("Removing gaps shorter than %d", gap_ticks)
 
-    notes = container.note_events()
+    notes = container.note_events() + [Event(TimeRange(container.time.stop, container.time.stop), None)]
     for i in range(len(notes)-1):
         gap = notes[i+1].time.start - notes[i].time.stop
         if gap > 0 and gap <= gap_ticks:
@@ -84,7 +84,6 @@ def attribute_list(container, items):
     for position, attr in items:
         container.get(position).add_attr('\\' + attr)
     return container
-
 
 def sequential(container):
 
