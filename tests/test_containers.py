@@ -94,14 +94,22 @@ class EventListTest(TestCase):
     def test_get(self):
         c = EventList(self.TEST_EVENTS)
         self.assertEqual(c.get(TimeRange(15, 25)).items(), [])
-        self.assertEqual(repr(c.get(TimeRange(15, 40))), "[<2 (20,30)>](15,40)")
+        self.assertEqual(repr(c.get(TimeRange(15, 40))),
+                "[<2 (20,30)>](15,40)")
+
+        c.add_event(20, "FOO")
+        self.assertEqual(repr(c.get(TimeRange(10, 20))),
+                "[<1 (10,20)>](10,20)")
 
     def test_slice(self):
         c = EventList(self.TEST_EVENTS)
         c.add_event(20, "FOO")
-        self.assertEqual(repr(c.slice(TimeRange(15, 25))), "[<1 (15,20)>, 'FOO', <2~ (20,25)>](15,25)")
-        self.assertEqual(repr(c.slice(TimeRange(20, 25))), "['FOO', <2~ (20,25)>](20,25)")
-        self.assertEqual(repr(c.slice(TimeRange(15, 20))), "[<1 (15,20)>](15,20)")
+        self.assertEqual(repr(c.slice(TimeRange(15, 25))),
+                "[<1 (15,20)>, <'FOO' (20)>, <2~ (20,25)>](15,25)")
+        self.assertEqual(repr(c.slice(TimeRange(20, 25))),
+                "[<'FOO' (20)>, <2~ (20,25)>](20,25)")
+        self.assertEqual(repr(c.slice(TimeRange(15, 20))),
+                "[<1 (15,20)>](15,20)")
 
 
     def test_lily_context(self):

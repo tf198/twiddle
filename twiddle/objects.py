@@ -62,18 +62,23 @@ class TimeRange(namedtuple('TimeRange', ('start', 'stop'))):
         return self.intersection(other)
 
     def intersects(self, other):
-        '''
-        SPECIAL CASE: returns true for zero length events at start
+        ''' Whether the two windows intersect.
+        Returns true for zero length events at start but not at end
         '''
         if other.start < self.start and other.stop <= self.start: return False
         if other.start >= self.stop: return False
         return True
 
     def contains(self, other):
-        ' Whether the given tick occurs in this range '
+        ''' Whether the given tick occurs within this range.
+        Returns true for zero length events at start but not at end
+        '''
         if isinstance(other, int):
             other = TimeRange(other, other)
-        return other.start >= self.start and other.stop <= self.stop
+
+        if other.start >= self.stop or other.stop > self.stop: return False
+        if other.start < self.start: return False
+        return True
 
     def __repr__(self):
         return "(%r,%r)" % (self.start, self.stop)
@@ -115,7 +120,7 @@ class Event(object):
     def __repr__(self):
         if self.time.ticks:
             return "<{0!r} {1}>".format(self.item, self.time)
-        return repr(self.item)
+        return "<{0!r} ({1})>".format(self.item, self.time.start)
 
     def to_lily(self, context={}):
         context['tick_length'] = self.time.ticks
