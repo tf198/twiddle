@@ -76,7 +76,7 @@ class EventListTest(TestCase):
         
         c.paste(EventList(self.TEST_EVENTS))
         self.assertEqual(c.time, (10, 50))
-        self.assertEqual(c.render_section(), ['1-10', '2-10', '1-10', '2-10'])
+        #self.assertEqual(c.render_section(), ['1-10', '2-10', '1-10', '2-10'])
         self.assertEqual([ x.time.start for x in c ], [10, 20, 30, 40])
 
         c.paste(EventList(self.TEST_EVENTS), 10)
@@ -91,20 +91,18 @@ class EventListTest(TestCase):
         c.paste(from_string('A-6 R-1 D-3'))
         self.assertEqual(c.time.stop, 20)
 
-        print(list(c))
-
-
-
     def test_get(self):
         c = EventList(self.TEST_EVENTS)
         self.assertEqual(c.get(TimeRange(15, 25)).items(), [])
-        self.assertEqual(repr(c.get(TimeRange(15, 40))), "[2-10](15,40)")
+        self.assertEqual(repr(c.get(TimeRange(15, 40))), "[<2 (20,30)>](15,40)")
 
     def test_slice(self):
         c = EventList(self.TEST_EVENTS)
         c.add_event(20, "FOO")
-        self.assertEqual(repr(c.slice(TimeRange(15, 25))), '[1-5, FOO, 2~-5](15,25)')
-        self.assertEqual(repr(c.slice(TimeRange(20, 25))), '[FOO, 2~-5](20,25)')
+        self.assertEqual(repr(c.slice(TimeRange(15, 25))), "[<1 (15,20)>, 'FOO', <2~ (20,25)>](15,25)")
+        self.assertEqual(repr(c.slice(TimeRange(20, 25))), "['FOO', <2~ (20,25)>](20,25)")
+        self.assertEqual(repr(c.slice(TimeRange(15, 20))), "[<1 (15,20)>](15,20)")
+
 
     def test_lily_context(self):
         part = from_string('A-2 Bb-1 C-1 D-2 E-1 F-2 G-1 A-2')
@@ -127,11 +125,11 @@ class EventListTest(TestCase):
         track.append(from_string('D-1 E-1 R-2 G-1', start=track.time.stop))
 
         self.assertEqual(track.time.stop, 10)
-
+        self.assertEqual(track.render_section(), 'a2 ais4 r4 | d4 d4 e4 r4 | r4 g4')
+        
         #track.paste(from_string('A-6 R-1 D-3'))
 
         #print(repr(track))
-        self.assertEqual(track.render_section(), 'a2 ais4 r4 | d4 r4 r2 | r2 a2~ | a1 | r4 d2. |')
         #print(track.render_section())
 
         
